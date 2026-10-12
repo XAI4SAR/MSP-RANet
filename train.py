@@ -14,7 +14,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--data", default=str(DEFAULT_DATA), help="Dataset YAML (default: FAIR-CSAR).")
     parser.add_argument("--model", default=str(DEFAULT_MODEL), help="Local model YAML or .pt checkpoint.")
     parser.add_argument("--epochs", type=int, default=200)
-    parser.add_argument("--batch", type=int, default=8)
+    parser.add_argument("--batch", type=int, default=12)
     parser.add_argument("--imgsz", type=int, default=1024)
     parser.add_argument("--device", default="0", help="GPU index (0), or cpu.")
     parser.add_argument("--workers", type=int, default=4, help="Use 0 if multiprocessing causes problems.")

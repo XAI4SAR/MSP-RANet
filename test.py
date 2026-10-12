@@ -13,7 +13,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--weights", required=True, help="Local MSP-RANet .pt checkpoint.")
     parser.add_argument("--split", default="test", choices=("train", "val", "test"))
     parser.add_argument("--imgsz", type=int, default=1024)
-    parser.add_argument("--batch", type=int, default=8)
+    parser.add_argument("--batch", type=int, default=12)
     parser.add_argument("--device", default="0", help="GPU index (0), or cpu.")
     parser.add_argument("--workers", type=int, default=4)
     parser.add_argument("--conf", type=float, default=0.001, help="Low cutoff for AP evaluation.")

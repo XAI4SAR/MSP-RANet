@@ -30,6 +30,7 @@ Install [anaconda](https://docs.conda.io/projects/miniconda/en/latest/), then ru
 ```bash
 conda create -n msp-ranet python=3.10 -y
 conda activate msp-ranet
+git clone https://github.com/ikang2001/MSP-RANet.git
 cd MSP-RANet
 python -m pip install --upgrade pip
 python -m pip install torch==2.5.1 torchvision==0.20.1 --index-url https://download.pytorch.org/whl/cu121
@@ -51,6 +52,8 @@ python -c "import torch, ultralytics; print('CUDA:', torch.cuda.is_available());
 The printed source path should point to this repository. The PyTorch version pair follows the [official installation instructions](https://pytorch.org/get-started/previous-versions/#v251).
 
 ### 2.2 Data Preparation
+
+**Dataset download:** [Baidu Netdisk](https://pan.baidu.com/s/19y-nOR7pdOqplnVipMYwfg?pwd=dirq), **access code: `dirq`**. Download and extract the data, arrange the images and labels as below, and update the dataset paths.
 
 Datasets: [SAR-AIRcraft-1.0](https://www.radars.ac.cn/web/data/getData?newsColumnId=81053ef7-8327-4f09-88c0-ea061f64f9ba&pageType=en) and [FAIR-CSAR-V1.0](https://radars.ac.cn/web/data/getData?newsColumnId=59937a70-2a40-4027-a32d-df36753bf6ae&pageType=en). For FAIR-CSAR, use the 12-class aircraft subset of the Spotlight (SL) data.
 
@@ -86,7 +89,7 @@ val: images/val
 test: images/test
 ```
 
-Keep the 12-class `names` mapping and SAR settings in this YAML, and verify that the class IDs match your OBB labels. Use the paper's data splits when comparing results; the repository does not include the FAIR aircraft subset split manifests.
+Keep the 12-class `names` mapping and SAR settings in this YAML, and verify that the class IDs match your OBB labels. Use the paper's training, validation and test splits for reproduction. Do not randomly re-split the data or include test images in training.
 
 ### 2.3 Training
 
@@ -95,12 +98,12 @@ The default model is [yolo11-obb-rapconv.yaml](ultralytics/cfg/models/11/yolo11-
 **FAIR-CSAR:**
 
 ```bash
-python train.py --model ultralytics/cfg/models/11/yolo11-obb-rapconv.yaml --data ultralytics/cfg/datasets/coco_ence_csar.yaml --epochs 200 --imgsz 1024 --batch 8 --device 0 --name msp_ranet_fair_csar
+python train.py --model ultralytics/cfg/models/11/yolo11-obb-rapconv.yaml --data ultralytics/cfg/datasets/coco_ence_csar.yaml --epochs 200 --imgsz 1024 --batch 12 --device 0 --name msp_ranet_fair_csar
 ```
 
 `--model` and `--data` may be omitted to use the defaults above. To use another dataset, pass its YAML through `--data` and provide matching OBB labels.
 
-Training defaults to SGD and initialization from scratch. Checkpoints are saved to `runs/<name>/weights/best.pt` and `last.pt`. Repeated run names receive a numeric suffix.
+Training defaults to SGD and initialization from scratch; the default batch size is `12` for both training and testing. Checkpoints are saved to `runs/<name>/weights/best.pt` and `last.pt`. Repeated run names receive a numeric suffix.
 
 Reduce `--batch` if GPU memory is insufficient. Use `--device cpu` for CPU execution, or `--workers 0` for Windows data-loader problems. To resume an interrupted run:
 
@@ -110,15 +113,15 @@ python train.py --data ultralytics/cfg/datasets/coco_ence_csar.yaml --model runs
 
 Resume restores the saved training settings; use the same dataset as the original run.
 
-### 2.4 Testing
+### 2.4 Testing and Prediction Export
 
 Evaluate the best checkpoint on the independent test split:
 
 ```bash
-python test.py --data ultralytics/cfg/datasets/coco_ence_csar.yaml --weights runs/msp_ranet_fair_csar/weights/best.pt --split test --imgsz 1024 --batch 8 --device 0 --name msp_ranet_fair_test
+python test.py --data ultralytics/cfg/datasets/coco_ence_csar.yaml --weights runs/msp_ranet_fair_csar/weights/best.pt --split test --imgsz 1024 --batch 12 --device 0 --save-txt --save-conf --name msp_ranet_fair_test
 ```
 
-Use `--split val` for validation. The console reports precision, recall, mAP@0.5 and mAP@0.5:0.95; results are saved to `runs/<name>/`. Add `--save-txt --save-conf` to export predictions. The default `--conf 0.001` is intended for AP evaluation.
+Use `--split val` for validation. The console reports precision, recall, mAP@0.5 and mAP@0.5:0.95; results are saved to `runs/<name>/`. The command also exports predictions to `runs/msp_ranet_fair_test/labels/`, with each line formatted as `class_id x1 y1 x2 y2 x3 y3 x4 y4 confidence`. The default `--conf 0.001` is intended for AP evaluation. The run folder also contains confusion matrices and selected prediction-batch visualizations.
 
 Run `python train.py --help` or `python test.py --help` for all options. Paper results above are manuscript-reported; see [implementation notes](docs/implementation-notes.md) for channel conventions, augmentation and HNR settings that need alignment for strict reproduction.
 

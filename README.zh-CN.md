@@ -30,6 +30,7 @@ MSP-RANet 是基于 YOLO11 的物理先验引导细粒度 SAR 飞机检测框架
 ```bash
 conda create -n msp-ranet python=3.10 -y
 conda activate msp-ranet
+git clone https://github.com/ikang2001/MSP-RANet.git
 cd MSP-RANet
 python -m pip install --upgrade pip
 python -m pip install torch==2.5.1 torchvision==0.20.1 --index-url https://download.pytorch.org/whl/cu121
@@ -51,6 +52,8 @@ python -c "import torch, ultralytics; print('CUDA:', torch.cuda.is_available());
 输出的源码路径应指向当前项目。PyTorch 版本组合参考[官方安装说明](https://pytorch.org/get-started/previous-versions/#v251)。
 
 ### 2.2 数据准备
+
+**数据集下载：** [百度网盘](https://pan.baidu.com/s/19y-nOR7pdOqplnVipMYwfg?pwd=dirq)，**提取码：`dirq`**。下载并解压后，按下方结构放置图像与标签，再修改数据配置中的路径。
 
 数据集：[SAR-AIRcraft-1.0](https://www.radars.ac.cn/web/data/getData?newsColumnId=81053ef7-8327-4f09-88c0-ea061f64f9ba&pageType=en)、[FAIR-CSAR-V1.0](https://radars.ac.cn/web/data/getData?newsColumnId=59937a70-2a40-4027-a32d-df36753bf6ae&pageType=en)。FAIR-CSAR 使用 Spotlight（SL）部分的 12 类飞机子集。
 
@@ -86,7 +89,7 @@ val: images/val
 test: images/test
 ```
 
-保留该 YAML 中的 12 类 `names` 和 SAR 配置，并确认类别编号与 OBB 标签对应。与论文比较时应使用对应的数据划分；当前仓库未附 FAIR 飞机子集的精确划分清单。
+保留该 YAML 中的 12 类 `names` 和 SAR 配置，并确认类别编号与 OBB 标签对应。复现时保持与论文一致的训练、验证、测试划分，避免重新随机切分或将测试图像用于训练。
 
 ### 2.3 模型训练
 
@@ -95,12 +98,12 @@ test: images/test
 **FAIR-CSAR：**
 
 ```bash
-python train.py --model ultralytics/cfg/models/11/yolo11-obb-rapconv.yaml --data ultralytics/cfg/datasets/coco_ence_csar.yaml --epochs 200 --imgsz 1024 --batch 8 --device 0 --name msp_ranet_fair_csar
+python train.py --model ultralytics/cfg/models/11/yolo11-obb-rapconv.yaml --data ultralytics/cfg/datasets/coco_ence_csar.yaml --epochs 200 --imgsz 1024 --batch 12 --device 0 --name msp_ranet_fair_csar
 ```
 
 省略 `--model` 和 `--data` 时会使用上述默认配置。使用其他数据集时，通过 `--data` 指定其 YAML，并准备匹配的 OBB 标签。
 
-默认使用 SGD，从头训练。权重保存在 `runs/<name>/weights/best.pt` 和 `last.pt` 中；重复实验名称会自动添加数字后缀。
+默认使用 SGD，从头训练，训练与测试的 batch 均为 `12`。权重保存在 `runs/<name>/weights/best.pt` 和 `last.pt` 中；重复实验名称会自动添加数字后缀。
 
 显存不足时减小 `--batch`；CPU 运行使用 `--device cpu`；Windows 数据加载遇到多进程问题时添加 `--workers 0`。恢复中断的训练：
 
@@ -110,15 +113,15 @@ python train.py --data ultralytics/cfg/datasets/coco_ence_csar.yaml --model runs
 
 续训会恢复保存的训练设置，请使用与原实验相同的数据集。
 
-### 2.4 模型测试
+### 2.4 模型测试与预测导出
 
 加载最佳权重，在独立测试集评估：
 
 ```bash
-python test.py --data ultralytics/cfg/datasets/coco_ence_csar.yaml --weights runs/msp_ranet_fair_csar/weights/best.pt --split test --imgsz 1024 --batch 8 --device 0 --name msp_ranet_fair_test
+python test.py --data ultralytics/cfg/datasets/coco_ence_csar.yaml --weights runs/msp_ranet_fair_csar/weights/best.pt --split test --imgsz 1024 --batch 12 --device 0 --save-txt --save-conf --name msp_ranet_fair_test
 ```
 
-验证集评估改为 `--split val`。控制台输出 Precision、Recall、mAP@0.5 和 mAP@0.5:0.95，结果保存到 `runs/<name>/`。添加 `--save-txt --save-conf` 可导出预测标签；默认 `--conf 0.001` 用于 AP 评估。
+验证集评估改为 `--split val`。控制台输出 Precision、Recall、mAP@0.5 和 mAP@0.5:0.95，结果保存到 `runs/<name>/`。上述命令同时导出预测标签到 `runs/msp_ranet_fair_test/labels/`，每行为 `class_id x1 y1 x2 y2 x3 y3 x4 y4 confidence`。默认 `--conf 0.001` 用于 AP 评估；目录内还会保存混淆矩阵和部分 batch 的预测可视化。
 
 完整参数可通过 `python train.py --help` 或 `python test.py --help` 查看。上方精度来自论文；严格复现前请核对[实现说明](docs/implementation-notes.md)中的通道约定、增强流程和 HNR 设置。
 
