@@ -1,0 +1,32 @@
+path: /mnt/e/CSAR/craft/obb_new/
+train: /mnt/e/CSAR/craft/obb_new/images/train
+val: /mnt/e/CSAR/craft/obb_new/images/val
+test: /mnt/e/CSAR/craft/obb/images/test
+
+nc: 12
+
+names:
+
+    0: Airbus_A220
+    1: Airbus_A320
+    2: Airbus_A330
+    3: Boeing737
+    4: Boeing747
+    5: Boeing767
+    6: Boeing777
+    7: Fokker-50
+    8: Gulfstream
+    9: Helicopter
+    10: Airfreighter
+    11: Other_Aircraft
+
+# SAR Image Enhancement Configuration ---------------------------------------------------------
+# Enable SAR (Synthetic Aperture Radar) image three-channel physical enhancement
+# This converts single-channel SAR images to three-channel RGB using:
+# - R: Scattering Keypoint Heatmap (Harris corner detection)
+# - G: Structure Tensor Coherence Map (anisotropy analysis)
+# - B: Adaptive Log-Amplitude Map (dynamic range compression)
+sar_enhancement: true             # Enable SAR enhancement (true/false)
+sar_sigma_keypoint: 1.5            # Gaussian diffusion radius for keypoint heatmap (R channel)
+sar_sigma_tensor: 1.5              # Smoothing scale for structure tensor (G channel)
+sar_clip_ratio: 2   

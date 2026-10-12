@@ -1,0 +1,24 @@
+# Copy to fair-csar.yaml and replace path with your absolute dataset root.
+# Windows example: D:/datasets/FAIR-CSAR; Linux/WSL example: /data/FAIR-CSAR
+path: /absolute/path/to/FAIR-CSAR
+train: images/train
+val: images/val
+test: images/test
+nc: 12
+# Repository class order. Verify that your converted labels use the same IDs.
+names:
+  0: Airbus_A220
+  1: Airbus_A320
+  2: Airbus_A330
+  3: Boeing737
+  4: Boeing747
+  5: Boeing767
+  6: Boeing777
+  7: Fokker-50
+  8: Gulfstream
+  9: Helicopter
+  10: Airfreighter
+  11: Other_Aircraft
+sar_enhancement: true
+sar_sigma_keypoint: 1.5
+sar_sigma_tensor: 1.5
