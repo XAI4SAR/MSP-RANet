@@ -1,52 +1,22 @@
-"""Evaluate MSP-RANet checkpoints with the SAR-aware dataset pipeline."""
+import warnings  # 导入warnings模块，用来控制Python中各种警告信息的显示行为
 
-import argparse
-from pathlib import Path
+warnings.filterwarnings('ignore')  # 忽略所有的警告信息，避免在控制台输出干扰信息
 
+from ultralytics import YOLO  # 从ultralytics包中导入YOLO类，用于模型加载、验证等操作
 
-DEFAULT_DATA = Path(__file__).resolve().parent / "ultralytics/cfg/datasets/coco_ence_csar.yaml"
-
-
-def parse_args() -> argparse.Namespace:
-    parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--data", default=str(DEFAULT_DATA), help="Dataset YAML (default: FAIR-CSAR).")
-    parser.add_argument("--weights", required=True, help="Local MSP-RANet .pt checkpoint.")
-    parser.add_argument("--split", default="test", choices=("train", "val", "test"))
-    parser.add_argument("--imgsz", type=int, default=1024)
-    parser.add_argument("--batch", type=int, default=12)
-    parser.add_argument("--device", default="0", help="GPU index (0), or cpu.")
-    parser.add_argument("--workers", type=int, default=4)
-    parser.add_argument("--conf", type=float, default=0.001, help="Low cutoff for AP evaluation.")
-    parser.add_argument("--iou", type=float, default=0.7, help="NMS IoU threshold, not the AP IoU threshold.")
-    parser.add_argument("--project", default="runs")
-    parser.add_argument("--name", default="msp_ranet_test")
-    parser.add_argument("--save-txt", action="store_true", help="Save predictions to labels/*.txt.")
-    parser.add_argument("--save-conf", action="store_true", help="Include confidence in saved labels.")
-    parser.add_argument("--save-json", action="store_true", help="Save a prediction JSON file.")
-    args = parser.parse_args()
-    for field in ("data", "weights"):
-        path = Path(getattr(args, field)).expanduser().resolve()
-        if not path.is_file():
-            parser.error(f"--{field} file does not exist: {path}")
-        setattr(args, field, str(path))
-    if Path(args.weights).suffix.lower() != ".pt":
-        parser.error("--weights must point to a local .pt checkpoint.")
-    if args.save_conf and not args.save_txt:
-        parser.error("--save-conf requires --save-txt.")
-    return args
-
-
-def main() -> None:
-    args = parse_args()
-    from ultralytics import YOLO
-
-    model = YOLO(args.weights)
-    options = vars(args).copy()
-    options.pop("weights")
-    metrics = model.val(**options, plots=True)
-    print(f"Evaluation outputs: {metrics.save_dir}")
-    print(metrics.results_dict)
-
-
-if __name__ == "__main__":
-    main()
+if __name__ == '__main__':  # 判断当前脚本是否作为主程序执行，若是则执行下面代码
+    # 创建一个YOLO模型实例，这里直接加载训练好的best.pt权重文件
+    model = YOLO('weight/fair-csar/v11/weights/best.pt')
+    # 使用model.val()方法进行验证，传入各项验证参数
+    model.val(
+        data=r'ultralytics/cfg/datasets/coco_ence_csar.yaml',  # 数据集配置文件，其中包含训练集和验证集的路径、类别等信息
+        split='test',  # 指定要使用的数据划分，这里选择验证集(val)
+        imgsz=1024,  # 输入图像的尺寸
+        batch=8,  # 验证时的批次大小
+        project='runs',  # 保存验证结果（日志、输出文件等）的主目录
+        name='test',  # 本次验证的名称，结果将保存在runs/val/exp目录下
+        device='cuda:0',
+        conf=0.2,
+        save=True,  # 不保存带标注的图像
+        save_txt=True, 
+    )

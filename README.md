@@ -93,37 +93,37 @@ Keep the 12-class `names` mapping and SAR settings in this YAML, and verify that
 
 ### 2.3 Training
 
-The default model is [yolo11-obb-rapconv.yaml](ultralytics/cfg/models/11/yolo11-obb-rapconv.yaml), with an `OBB` head for oriented-box detection. The default dataset is [coco_ence_csar.yaml](ultralytics/cfg/datasets/coco_ence_csar.yaml) for the 12-class FAIR-CSAR aircraft subset.
+The model configuration is [yolo11-obb-rapconv.yaml](ultralytics/cfg/models/11/yolo11-obb-rapconv.yaml), and the FAIR-CSAR dataset configuration is [coco_ence_csar.yaml](ultralytics/cfg/datasets/coco_ence_csar.yaml).
 
-**FAIR-CSAR:**
-
-```bash
-python train.py --model ultralytics/cfg/models/11/yolo11-obb-rapconv.yaml --data ultralytics/cfg/datasets/coco_ence_csar.yaml --epochs 200 --imgsz 1024 --batch 12 --device 0 --name msp_ranet_fair_csar
-```
-
-`--model` and `--data` may be omitted to use the defaults above. To use another dataset, pass its YAML through `--data` and provide matching OBB labels.
-
-Training defaults to SGD and initialization from scratch; the default batch size is `12` for both training and testing. Checkpoints are saved to `runs/<name>/weights/best.pt` and `last.pt`. Repeated run names receive a numeric suffix.
-
-Reduce `--batch` if GPU memory is insufficient. Use `--device cpu` for CPU execution, or `--workers 0` for Windows data-loader problems. To resume an interrupted run:
+Run the original training script from the repository root:
 
 ```bash
-python train.py --data ultralytics/cfg/datasets/coco_ence_csar.yaml --model runs/msp_ranet_fair_csar/weights/last.pt --resume --device 0
+python train.py
 ```
 
-Resume restores the saved training settings; use the same dataset as the original run.
+Training settings in `train.py`: `epochs=200`, `batch=12`, `imgsz=1024`, `optimizer="SGD"`, `amp=False`, `pretrained=False` and `patience=200`. Edit the values directly in the script when needed. Augmentation settings follow the original source defaults.
 
-### 2.4 Testing and Prediction Export
+Checkpoints are saved to `runs/train/weights/best.pt` and `runs/train/weights/last.pt`. Repeated run names receive a numeric suffix; use the actual output folder printed during training.
 
-Evaluate the best checkpoint on the independent test split:
+### 2.4 Testing
+
+The original `test.py` loads `weight/fair-csar/v11/weights/best.pt`. To evaluate the checkpoint from the training run above, update its model path to:
+
+```python
+model = YOLO("runs/train/weights/best.pt")
+```
+
+Then run from the repository root:
 
 ```bash
-python test.py --data ultralytics/cfg/datasets/coco_ence_csar.yaml --weights runs/msp_ranet_fair_csar/weights/best.pt --split test --imgsz 1024 --batch 12 --device 0 --save-txt --save-conf --name msp_ranet_fair_test
+python test.py
 ```
 
-Use `--split val` for validation. The console reports precision, recall, mAP@0.5 and mAP@0.5:0.95; results are saved to `runs/<name>/`. The command also exports predictions to `runs/msp_ranet_fair_test/labels/`, with each line formatted as `class_id x1 y1 x2 y2 x3 y3 x4 y4 confidence`. The default `--conf 0.001` is intended for AP evaluation. The run folder also contains confusion matrices and selected prediction-batch visualizations.
+The original test settings are `split="test"`, `imgsz=1024`, `batch=8`, `device="cuda:0"`, `conf=0.2`, `save=True` and `save_txt=True`. Edit the weights, data path and other settings directly in `test.py` when needed. Use `split="val"` to evaluate the validation set.
 
-Run `python train.py --help` or `python test.py --help` for all options. Paper results above are manuscript-reported; see [implementation notes](docs/implementation-notes.md) for channel conventions, augmentation and HNR settings that need alignment for strict reproduction.
+The console reports precision, recall, mAP@0.5 and mAP@0.5:0.95. Results are saved to `runs/test/`; prediction labels are written to `runs/test/labels/` without confidence values. Metric plots and selected prediction-batch visualizations are also saved. Repeated run names receive a numeric suffix.
+
+The dataset download and paper results are provided above. Details relevant to reproducing the manuscript are collected in the [implementation notes](docs/implementation-notes.md).
 
 ## 3. Citation
 

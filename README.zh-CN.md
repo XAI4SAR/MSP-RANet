@@ -93,37 +93,37 @@ test: images/test
 
 ### 2.3 模型训练
 
-默认模型为 [yolo11-obb-rapconv.yaml](ultralytics/cfg/models/11/yolo11-obb-rapconv.yaml)，最后一层为 `OBB`，用于旋转框检测。默认数据配置为 [coco_ence_csar.yaml](ultralytics/cfg/datasets/coco_ence_csar.yaml)，对应 FAIR-CSAR 的 12 类飞机子集。
+模型配置为 [yolo11-obb-rapconv.yaml](ultralytics/cfg/models/11/yolo11-obb-rapconv.yaml)，FAIR-CSAR 数据配置为 [coco_ence_csar.yaml](ultralytics/cfg/datasets/coco_ence_csar.yaml)。
 
-**FAIR-CSAR：**
-
-```bash
-python train.py --model ultralytics/cfg/models/11/yolo11-obb-rapconv.yaml --data ultralytics/cfg/datasets/coco_ence_csar.yaml --epochs 200 --imgsz 1024 --batch 12 --device 0 --name msp_ranet_fair_csar
-```
-
-省略 `--model` 和 `--data` 时会使用上述默认配置。使用其他数据集时，通过 `--data` 指定其 YAML，并准备匹配的 OBB 标签。
-
-默认使用 SGD，从头训练，训练与测试的 batch 均为 `12`。权重保存在 `runs/<name>/weights/best.pt` 和 `last.pt` 中；重复实验名称会自动添加数字后缀。
-
-显存不足时减小 `--batch`；CPU 运行使用 `--device cpu`；Windows 数据加载遇到多进程问题时添加 `--workers 0`。恢复中断的训练：
+在项目根目录直接运行原始训练脚本：
 
 ```bash
-python train.py --data ultralytics/cfg/datasets/coco_ence_csar.yaml --model runs/msp_ranet_fair_csar/weights/last.pt --resume --device 0
+python train.py
 ```
 
-续训会恢复保存的训练设置，请使用与原实验相同的数据集。
+`train.py` 中的训练参数为：`epochs=200`、`batch=12`、`imgsz=1024`、`optimizer="SGD"`、`amp=False`、`pretrained=False`、`patience=200`。需要调整时直接编辑脚本中的对应值。数据增强沿用原始源码默认设置。
 
-### 2.4 模型测试与预测导出
+权重保存在 `runs/train/weights/best.pt` 和 `runs/train/weights/last.pt`。重复实验名称会自动添加数字后缀，请以训练日志中的实际输出目录为准。
 
-加载最佳权重，在独立测试集评估：
+### 2.4 模型测试
+
+原始 `test.py` 加载 `weight/fair-csar/v11/weights/best.pt`。测试上一步训练得到的模型时，将其中的模型路径改为：
+
+```python
+model = YOLO("runs/train/weights/best.pt")
+```
+
+然后在项目根目录执行：
 
 ```bash
-python test.py --data ultralytics/cfg/datasets/coco_ence_csar.yaml --weights runs/msp_ranet_fair_csar/weights/best.pt --split test --imgsz 1024 --batch 12 --device 0 --save-txt --save-conf --name msp_ranet_fair_test
+python test.py
 ```
 
-验证集评估改为 `--split val`。控制台输出 Precision、Recall、mAP@0.5 和 mAP@0.5:0.95，结果保存到 `runs/<name>/`。上述命令同时导出预测标签到 `runs/msp_ranet_fair_test/labels/`，每行为 `class_id x1 y1 x2 y2 x3 y3 x4 y4 confidence`。默认 `--conf 0.001` 用于 AP 评估；目录内还会保存混淆矩阵和部分 batch 的预测可视化。
+原始测试参数为：`split="test"`、`imgsz=1024`、`batch=8`、`device="cuda:0"`、`conf=0.2`、`save=True`、`save_txt=True`。需要调整权重、数据路径或其他参数时直接编辑 `test.py`；验证集评估将 `split` 改为 `"val"`。
 
-完整参数可通过 `python train.py --help` 或 `python test.py --help` 查看。上方精度来自论文；严格复现前请核对[实现说明](docs/implementation-notes.md)中的通道约定、增强流程和 HNR 设置。
+控制台输出 Precision、Recall、mAP@0.5 和 mAP@0.5:0.95。结果保存在 `runs/test/`，预测标签保存在 `runs/test/labels/`，不包含置信度数值；同时保存指标图和部分 batch 的预测可视化。重复实验名称会自动添加数字后缀。
+
+数据集下载和论文精度见上文，严格复现涉及的实现细节见[实现说明](docs/implementation-notes.md)。
 
 ## 3. 引用
 
