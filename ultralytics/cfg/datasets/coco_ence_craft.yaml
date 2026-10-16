@@ -1,12 +1,12 @@
 
-path: /mnt/e/CSAR/craft/SAR-AIRcraft-1.0/liulong/
+path: /mnt/e/CSAR/craft/SAR-AIRcraft-1.0/
 
-train: /mnt/e/CSAR/craft/SAR-AIRcraft-1.0/liulong/images/train
+train: /mnt/e/CSAR/craft/SAR-AIRcraft-1.0/images/train
 
 
-val: /mnt/e/CSAR/craft/SAR-AIRcraft-1.0/liulong/images/val
+val: /mnt/e/CSAR/craft/SAR-AIRcraft-1.0/images/val
 
-test: /mnt/e/CSAR/craft/SAR-AIRcraft-1.0/liulong/images/test
+test: /mnt/e/CSAR/craft/SAR-AIRcraft-1.0/images/test
 
 nc: 7
 names:
@@ -17,42 +17,9 @@ names:
   4: Boeing737
   5: A330
   6: ARJ21
-# SAR Image Enhancement Configuration ---------------------------------------------------------
-# Enable SAR (Synthetic Aperture Radar) image three-channel physical enhancement
-# This converts single-channel SAR images to three-channel RGB using:
-# - R: Scattering Keypoint Heatmap (Harris corner detection)
-# - G: Structure Tensor Coherence Map (anisotropy analysis)
-# - B: Adaptive Log-Amplitude Map (dynamic range compression)
-sar_enhancement: false              # Enable SAR enhancement (true/false)
+
+sar_enhancement: true              # Enable SAR enhancement (true/false)
 sar_sigma_keypoint: 10        # Gaussian diffusion radius for keypoint heatmap (R channel)
 sar_sigma_tensor: 0.2             # Smoothing scale for structure tensor (G channel)
 # sar_clip_ratio: 0.01               # Truncation ratio for log enhancement (B channel)
 sar_clip_ratio: 2   
-# sar_sigma_keypoint散射关键点热力图的高斯扩散半径
-# 功能说明：
-# - 控制R通道热力点的扩散范围
-# - 值越大，关键点热力区域越大、越平滑
-# - 值越小，关键点热力区域越紧凑
-# 调参建议：
-# - 检测小目标：使用较小值（5-10）
-# - 检测大目标：使用较大值（15-25）
-# - 目标密集场景：使用较大值（20-30）
-
-# sar_sigma_tensor功能说明：
-# - 控制G通道结构张量的邻域统计范围
-# - 值越大，捕捉越大的线性结构
-# - 值越小，保留更多局部细节
-# 调参建议：
-# - 边缘清晰目标：使用较小值（1.0-2.0）
-# - 边缘模糊目标：使用较大值（3.0-5.0）
-# - 噪声较大场景：使用较大值（3.0-5.0）
-
-
-# sar_clip_ratio功能说明：
-# - 控制B通道对数变换后的截断比例
-# - 用于去除极亮和极暗的异常值
-# - 值越大，去除的异常值越多
-# 调参建议：
-# - 图像质量好：使用较小值（0.001-0.01）
-# - 存在极端值：使用较大值（0.02-0.05）
-# - 需要高对比度：使用较大值（0.02-0.05）
