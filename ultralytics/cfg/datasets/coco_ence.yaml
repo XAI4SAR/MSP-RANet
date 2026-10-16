@@ -1,31 +1,84 @@
+# Ultralytics 🚀 AGPL-3.0 License - https://ultralytics.com/license
 
-path: /mnt/e/CSAR/craft/SAR-AIRcraft-1.0/liulong/
+# COCO 2017 dataset https://cocodataset.org by Microsoft
+# Documentation: https://docs.ultralytics.com/datasets/detect/coco/
+# Example usage: yolo train data=coco.yaml
+# parent
+# ├── ultralytics
+# └── datasets
+#     └── coco  ← downloads here (20.1 GB)
+# images 
+# --train
+# --val
+# --test
+# labels
+# --train
+# --val
+# --test
+# Train/val/test sets as 1) dir: path/to/imgs, 2) file: path/to/imgs.txt, or 3) list: [path/to/imgs1, path/to/imgs2, ..]
+path: /DATA/jwk/new/MSP-RANet/fair-csar-ship/
 
-train: /mnt/e/CSAR/craft/SAR-AIRcraft-1.0/liulong/images/train
+train: /DATA/jwk/new/MSP-RANet/fair-csar-ship/images/train
 
 
-val: /mnt/e/CSAR/craft/SAR-AIRcraft-1.0/liulong/images/val
+val: /DATA/jwk/new/MSP-RANet/fair-csar-ship/images/val
 
-test: /mnt/e/CSAR/craft/SAR-AIRcraft-1.0/liulong/images/test
+test: /DATA/jwk/new/MSP-RANet/fair-csar-ship/images/test
 
-nc: 7
+nc: 12
+
 names:
-  0: Boeing787
-  1: A220
-  2: other
-  3: A320/321
-  4: Boeing737
-  5: A330
-  6: ARJ21
+
+    0: Airbus_A220
+    1: Airbus_A320
+    2: Airbus_A330
+    3: Boeing737
+    4: Boeing747
+    5: Boeing767
+    6: Boeing777
+    7: Fokker-50
+    8: Gulfstream
+    9: Helicopter
+    10: Airfreighter
+    11: Other_Aircraft
+
+# path: /mnt/e/CSAR/craft/SAR-AIRcraft-1.0/liulong/
+
+# train: /mnt/e/CSAR/craft/SAR-AIRcraft-1.0/liulong/images/train
+
+
+# val: /mnt/e/CSAR/craft/SAR-AIRcraft-1.0/liulong/images/val
+
+# test: /mnt/e/CSAR/craft/SAR-AIRcraft-1.0/liulong/images/test
+
+# nc: 7
+
+# names:
+#     0: A220
+#     1: A320/321
+#     2: A330
+#     3: ARJ21
+#     4: Boeing737
+#     5: Boeing787
+#     6: other
+# nc: 7
+# names:
+#   0: Boeing787
+#   1: A220
+#   2: other
+#   3: A320/321
+#   4: Boeing737
+#   5: A330
+#   6: ARJ21
 # SAR Image Enhancement Configuration ---------------------------------------------------------
 # Enable SAR (Synthetic Aperture Radar) image three-channel physical enhancement
 # This converts single-channel SAR images to three-channel RGB using:
 # - R: Scattering Keypoint Heatmap (Harris corner detection)
 # - G: Structure Tensor Coherence Map (anisotropy analysis)
 # - B: Adaptive Log-Amplitude Map (dynamic range compression)
-sar_enhancement: true             # Enable SAR enhancement (true/false)
-sar_sigma_keypoint: 10        # Gaussian diffusion radius for keypoint heatmap (R channel)
-sar_sigma_tensor: 0.2             # Smoothing scale for structure tensor (G channel)
+sar_enhancement: true              # Enable SAR enhancement (true/false)
+sar_sigma_keypoint: 1.5            # Gaussian diffusion radius for keypoint heatmap (R channel)
+sar_sigma_tensor: 1.5              # Smoothing scale for structure tensor (G channel)
 # sar_clip_ratio: 0.01               # Truncation ratio for log enhancement (B channel)
 sar_clip_ratio: 2   
 # sar_sigma_keypoint散射关键点热力图的高斯扩散半径

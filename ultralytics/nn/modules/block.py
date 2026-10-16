@@ -1878,64 +1878,6 @@ class A2C2f(nn.Module):
             return x + self.gamma.view(-1, len(self.gamma), 1, 1) * y
         return y
 
-# class A2C2f(nn.Module):
-
-# # ========== 修改后 ==========
-
-#     def __init__(self, c1, c2, n=1, a2=True, area=1, residual=False, mlp_ratio=2.0, e=0.5, g=1, shortcut=True, rot=False):
-#         """
-#         新增 rot 参数 (default=False):
-#             rot=False: 使用原生 A2C2f 逻辑 (ABlock 或 C3k)
-#             rot=True:  内部使用 RotatedAdaptive_Bottleneck 替换 ABlock，
-#                     保留 A2C2f 的 C2f 框架和残差机制，
-#                     但用十字/X形旋转路由替换 area self-attention
-#         """
-#         super().__init__()
-#         c_ = int(c2 * e)
-#         self.cv1 = Conv(c1, c_, 1, 1)
-#         self.cv2 = Conv((1 + n) * c_, c2, 1)
-#         self.gamma = nn.Parameter(0.01 * torch.ones(c2), requires_grad=True) if residual else None
-#         self.rot = rot
-
-#         if rot:
-#             # ====== 替换点：用 RotatedAdaptive_Bottleneck 替换 ABlock ======
-#             # 不需要 c_ % 32 == 0 的断言，RotatedAdaptive_Bottleneck 无此限制
-#             # 每个 m 单元直接是一个 RotatedAdaptive_Bottleneck（不需要 Sequential 包装）
-#             self.m = nn.ModuleList(
-#                 RotatedAdaptive_Bottleneck(c_, c_, shortcut, g, e=1.0) for _ in range(n)
-#             )
-#         else:
-#             # 保持原生 A2C2f 逻辑
-#             assert c_ % 32 == 0, "Dimension of ABlock be a multiple of 32."
-#             self.m = nn.ModuleList(
-#                 nn.Sequential(*(ABlock(c_, c_ // 32, mlp_ratio, area) for _ in range(2)))
-#                 if a2
-#                 else C3k(c_, c_, 2, shortcut, g)
-#                 for _ in range(n)
-#             )
-
-#     def forward(self, x):
-#         """
-#         Forward pass through A2C2f layer.
-
-#         Args:
-#             x (torch.Tensor): Input tensor.
-
-#         Returns:
-#             (torch.Tensor): Output tensor after processing.
-#         """
-#         y = [self.cv1(x)]
-#         y.extend(m(y[-1]) for m in self.m)
-#         y = self.cv2(torch.cat(y, 1))
-#         if self.gamma is not None:
-#             return x + self.gamma.view(-1, len(self.gamma), 1, 1) * y
-#         return y
-
-
-
-
-
-
 
 class SwiGLUFFN(nn.Module):
     """SwiGLU Feed-Forward Network for transformer-based architectures."""
@@ -2027,24 +1969,16 @@ class SAVPE(nn.Module):
 
 
 class RotatedAdaptive_Bottleneck(nn.Module):
-    """
-    旋转自适应风车瓶颈层 (RA-PConv Bottleneck)
-    用于提取 SAR 飞机的十字形/X形强散射特征，适应任意旋转角度
-    """
-
     def __init__(self, c1, c2, shortcut=True, g=1, e=0.5):
         super().__init__()
         c_ = int(c2 * e)
         self.cv1 = Conv(c1, c_, 1, 1)
 
-        # 分支 1：正交风车 (+) - 针对水平或垂直停放的飞机
         self.ortho_conv_h = nn.Conv2d(c_, c_, kernel_size=(1, 3), padding=(0, 1), groups=g, bias=False)
         self.ortho_conv_v = nn.Conv2d(c_, c_, kernel_size=(3, 1), padding=(1, 0), groups=g, bias=False)
 
-        # 分支 2：对角风车 (X) - 针对倾斜停放的飞机  dila空洞卷积   分组卷积
         self.diag_conv = nn.Conv2d(c_, c_, kernel_size=3, padding=2, dilation=2, groups=g, bias=False)
 
-        #预测每个像素点应该使用哪个分支， 为每个像素位置预测两个分数，表示该位置偏向哪个分支。
         self.router = nn.Sequential(
             nn.Conv2d(c_, 2, kernel_size=1),
             nn.Softmax(dim=1)
@@ -2056,24 +1990,16 @@ class RotatedAdaptive_Bottleneck(nn.Module):
     def forward(self, x):
         x_hidden = self.cv1(x)
 
-        # 提取正交十字特征 (+)
-        # 水平卷积响应 + 垂直卷积响应
-        #  = 水平方向散射 + 垂直方向散射
-        #  = 完整的十字形 (+ 形) 散射特征
         ortho_feat = self.ortho_conv_h(x_hidden) + self.ortho_conv_v(x_hidden)
 
-        # 提取对角交叉特征 (X)
         diag_feat = self.diag_conv(x_hidden)
 
-        # 生成空间路由权重
         routing_weights = self.router(x_hidden)  # (B, 2, H, W)
         weight_ortho = routing_weights[:, 0:1, :, :]  ## (B, 1, H, W)
         weight_diag = routing_weights[:, 1:2, :, :]  ## # (B, 1, H, W)
 
-        # 动态融合
         adaptive_feat = weight_ortho * ortho_feat + weight_diag * diag_feat
 
-        # 升维与残差连接
         out = self.cv2(adaptive_feat)
         return x + out if self.add else out
 
@@ -2116,74 +2042,26 @@ class RAPC2f(nn.Module):
 
 
 class DualStreamStem(nn.Module):
-    """
-    双流物理先验引导主干 (Dual-Stream Physical Prior Guided Stem)
-
-    用于替换 YOLOv11 Backbone 的第一层 Conv，专为 SAR 增强三通道图像设计。
-
-    核心思想：将异构的三通道图像（R=原图, G=角点, B=结构张量）分流处理：
-    - 主干流（Main Stream）：仅处理 R 通道（原始 SAR 灰度图），提取纯净的细粒度语义特征
-    - 先验流（Prior Stream）：处理 B/G 通道（Harris角点 + 结构张量），生成空间注意力图
-    - 融合：先验流生成的注意力图以 (1 + attn) 残差形式引导主干流特征
-
-    参数顺序与 Conv 保持一致: (c1=3, c2=64, k=3, s=2)
-
-    与原生 Conv(3→64) 的区别：
-    - Conv(3→64)：三通道无差别混合，信息混合后无法分离
-    - DualStreamStem(3→64)：R通道独立提取，先验引导，无信息污染
-    """
 
     def __init__(self, c1=3, c2=64, k=3, s=2):
         super().__init__()
-        # 主干流 (Main Stream)：
-        #   输入：R通道（原图），通道数 = c1 // 3（取整）
-        #   输出：c2 // 2 通道特征
         c1_main = c1 // 3
         self.main_stem = Conv(c1_main, c2 // 2, k=k, s=s)
 
-        # 先验流 (Prior Stream)：
-        #   输入：B/G通道（角点+结构张量），通道数 = c1 - c1_main
-        #   输出：c2 // 2 通道特征
+
         c1_prior = c1 - c1_main
         self.prior_stem = Conv(c1_prior, c2 // 2, k=k, s=s)
 
-        # 空间注意力转换器：
-        #   将物理先验特征转化为 0~1 的空间注意力权重图
-        #   使用 Sigmoid 激活，保证注意力权重在 (0, 1) 范围内
         self.spatial_attn = nn.Sequential(
             nn.Conv2d(c2 // 2, 1, kernel_size=1, bias=False),
             nn.Sigmoid()
         )
 
-
-
-        # 替换 self.spatial_attn 为：
-        # self.channel_gate = nn.Sequential(
-        #     nn.AdaptiveAvgPool2d(1),
-        #     nn.Conv2d(c2 // 2, c2 // 2, 1),
-        #     nn.Sigmoid()
-        # )
-
-
-
         # 融合层：整合被指导后的主干特征和先验特征
         self.fuse = Conv(c2, c2, k=1, s=1)
 
     def forward(self, x):
-        """
-        前向传播
 
-        Args:
-            x: 输入张量，shape [B, 3, H, W]
-               这里的 3 通道来自 enhance_sar_image_v2() 的 BGR 输出：
-               - x[:, 2:3]  → R通道（原始SAR图像）→ 主干流
-               - x[:, 0:2]  → B/G通道（物理先验）→ 先验流
-
-        Returns:
-            torch.Tensor: 融合后的特征，shape [B, c2, H//s, W//s]
-        """
-        # 1. 解耦输入（OpenCV BGR 顺序）
-        #    BGR → [B, G, R]，其中 R(索引2)是主干流，B/G(索引0,1)是先验流
         x_main = x[:, 2:3, :, :]    # [B, 1, H, W] — R通道（原图）
         x_prior = x[:, 0:2, :, :]   # [B, 2, H, W] — B/G通道（物理先验）
 
@@ -2191,25 +2069,10 @@ class DualStreamStem(nn.Module):
         feat_main = self.main_stem(x_main)    # [B, 32, H/2, W/2] (假设c2=64)
         feat_prior = self.prior_stem(x_prior) # [B, 32, H/2, W/2]
 
-   
-        
-
         # 3. 物理先验引导 (Physical Prior Guidance)
-        #    将物理散射特征转化为 0~1 的空间注意力权重图
         attn_map = self.spatial_attn(feat_prior)  # [B, 1, H/2, W/2]
 
-        #    强散射区域的特征被增强，但弱散射区域的细粒度特征因为残差连接 (1 + attn)
-        #    而被完美保留！这比直接乘法（attn=0 → F=0）温和得多
         feat_main_guided = feat_main * (1.0 + attn_map)
 
         # 4. 拼接并融合输出
         return self.fuse(torch.cat([feat_main_guided, feat_prior], dim=1))
-        
-
-        
-        # # forward 中替换为：
-        # attn = self.channel_gate(feat_prior)        # [B, 32, 1, 1]
-        # feat_main_guided = feat_main * attn
-        # return self.fuse(torch.cat([feat_main_guided, feat_prior], dim=1))
-
-        # return self.fuse(torch.cat([feat_main, feat_prior], dim=1))

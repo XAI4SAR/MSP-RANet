@@ -1,22 +1,28 @@
 from ultralytics import YOLO
- 
-# Load a model
-model = YOLO("ultralytics/cfg/models/11/yolo11-obb-rapconv.yaml")
-# Train the model
-train_results = model.train(
-    data="ultralytics/cfg/datasets/coco_ence_csar.yaml",  
-    epochs=200,  
-    batch=12,
-    amp=False,
-    imgsz=1024,  
-    device="0",  # device to run on, i.e. device=0 or device=0,1,2,3 or device=cpu
-    pretrained=False,
-    verbose=True,
-    optimizer="SGD",
-    project='runs',##权重保存地址
-    name='train',
-    patience = 200,
-    resume=True,
-)
- 
 
+
+if __name__ == "__main__":
+    model = YOLO("ultralytics/cfg/models/11/yolo11-obb-rapconv.yaml")
+    train_results = model.train(
+        data="ultralytics/cfg/datasets/coco_ence.yaml",
+        epochs=200,
+        imgsz=1024,
+        batch=10,
+        workers=8,
+        device="0",
+        optimizer="SGD",
+        lr0=0.01,
+        lrf=0.01,
+        momentum=0.937,
+        weight_decay=0.0005,
+        seed=0,
+        deterministic=True,
+        pretrained=False,
+        amp=False,
+        verbose=True,
+        patience=200,
+        iou=0.5,
+        max_det=300,
+        project="run/fair-csar",
+        name="v11",
+    )

@@ -141,58 +141,29 @@ class OBBValidator(DetectionValidator):
         )  # native-space pred
         return predn
 
-    # def plot_predictions(self, batch, preds, ni):
-    #     """
-    #     Plot predicted bounding boxes on input images and save the result.
-
-    #     Args:
-    #         batch (dict): Batch data containing images, file paths, and other metadata.
-    #         preds (list): List of prediction tensors for each image in the batch.
-    #         ni (int): Batch index used for naming the output file.
-
-    #     Examples:
-    #         >>> validator = OBBValidator()
-    #         >>> batch = {"img": images, "im_file": paths}
-    #         >>> preds = [torch.rand(10, 7)]  # Example predictions for one image
-    #         >>> validator.plot_predictions(batch, preds, 0)
-    #     """
-    #     plot_images(
-    #         batch["img"],
-    #         *output_to_rotated_target(preds, max_det=self.args.max_det),
-    #         paths=batch["im_file"],
-    #         fname=self.save_dir / f"val_batch{ni}_pred.jpg",
-    #         names=self.names,
-    #         on_plot=self.on_plot,
-    #     )  # pred
-    
     def plot_predictions(self, batch, preds, ni):
-        """Plot predicted bounding boxes on input images and save the result."""
-        import cv2
-        import numpy as np
-        import torch
-        
-        # 获取目标尺寸
-        img_tensor = batch["img"]
-        _, _, h, w = img_tensor.shape
-        
-        # 加载原始灰度图并resize到相同尺寸
-        orig_imgs = []
-        for im_file in batch["im_file"]:
-            img = cv2.imread(str(im_file), cv2.IMREAD_GRAYSCALE)
-            img = cv2.resize(img, (w, h))
-            img = cv2.cvtColor(img, cv2.COLOR_GRAY2RGB)
-            orig_imgs.append(img.transpose(2, 0, 1))  # HWC -> CHW
-        orig_imgs = np.array(orig_imgs)
-        
+        """
+        Plot predicted bounding boxes on input images and save the result.
+
+        Args:
+            batch (dict): Batch data containing images, file paths, and other metadata.
+            preds (list): List of prediction tensors for each image in the batch.
+            ni (int): Batch index used for naming the output file.
+
+        Examples:
+            >>> validator = OBBValidator()
+            >>> batch = {"img": images, "im_file": paths}
+            >>> preds = [torch.rand(10, 7)]  # Example predictions for one image
+            >>> validator.plot_predictions(batch, preds, 0)
+        """
         plot_images(
-            torch.from_numpy(orig_imgs).float(),  # 转为tensor
+            batch["img"],
             *output_to_rotated_target(preds, max_det=self.args.max_det),
             paths=batch["im_file"],
             fname=self.save_dir / f"val_batch{ni}_pred.jpg",
             names=self.names,
             on_plot=self.on_plot,
-        )
-
+        )  # pred
 
     def pred_to_json(self, predn, filename):
         """

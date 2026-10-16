@@ -24,7 +24,7 @@ def compute_fine_grained_nnh_loss(pred_logits, target_labels, mask, margin=2.0):
     :param margin: 强行拉开的特征边界距离（超参数）
     """
     if mask.sum() == 0:
-        return pred_logits.sum() * 0.0  # 防止梯度断裂
+        return pred_logits.sum() * 0.0  # 防止梯度断裂，如果没有正样本，返回 0 损失，避免后续计算报错。
 
     # 1. 提取所有正样本的预测 logit 和真实标签
     pos_logits = pred_logits[mask]  # [N_pos, num_classes]
@@ -36,8 +36,8 @@ def compute_fine_grained_nnh_loss(pred_logits, target_labels, mask, margin=2.0):
     # 3. 寻找"最高分的错误类别"（难负样本）
     # 克隆一份 logit，把正确类别的位置设为极小值，这样 max() 就只会选到错误类别
     neg_logits = pos_logits.clone()
-    neg_logits.scatter_(1, pos_targets.unsqueeze(1), -1e9)
-    max_neg_scores, _ = neg_logits.max(dim=1)  # [N_pos]
+    neg_logits.scatter_(1, pos_targets.unsqueeze(1), -1e9) #找出除了正确类别以外分数最高的那个错误类别
+    max_neg_scores, _ = neg_logits.max(dim=1)  # [N_pos] #得到错误样本的得分
 
     # 4. 计算 Hinge Loss: max(0, 负样本最高分 - 正样本得分 + Margin)
     # 意义：如果错误分类的得分快逼近正确分类了，就狠狠惩罚；如果拉开的差距大于 Margin，则不惩罚（loss为0）
@@ -277,30 +277,6 @@ class v8DetectionLoss:
         # loss[1] = self.varifocal_loss(pred_scores, target_scores, target_labels) / target_scores_sum  # VFL way
         loss[1] = self.bce(pred_scores, target_scores.to(dtype)).sum() / target_scores_sum  # BCE
 
-        # ===== NNH Loss - 细粒度难负样本排斥损失  =====
-        # 获取正样本 mask 和目标类别标签
-        target_labels = target_scores.argmax(dim=-1)  # [batch, num_anchors]
-        # 计算 NNH Loss (Two-stage progressive schedule)
-        nnh_margin = 1
-        # Two-stage progressive optimization:
-        # - Stage1 (warmup): disable NNH to stabilize structural features learned by RA-PConv
-        # - Stage2: smoothly increase alpha to alpha_max with cosine ramp
-        warmup_epochs = 100
-        alpha_max = 0.5
-        ##温和一点排斥 margin=0.5 alpha=0.3  较强一点排斥 margin=1 alpha=0.5  强烈一点排斥 margin=1.5 alpha=0.5
-        current_epoch = int(batch.get("epoch", 0))
-        total_epochs = int(batch.get("epochs", 0))
-        if current_epoch < warmup_epochs or total_epochs <= warmup_epochs:
-            alpha_nnh = 0.0
-        else:
-            progress = (current_epoch - warmup_epochs) / (total_epochs - warmup_epochs)
-            progress = max(0.0, min(1.0, progress))
-            alpha_nnh = alpha_max * 0.5 * (1.0 - math.cos(math.pi * progress))
-
-        ##温和一点排斥 margin=0.5 alpha_max=0.3  较强一点排斥 margin=1 alpha_max=0.5  强烈一点排斥 margin=1.5 alpha_max=0.5
-        loss_nnh = compute_fine_grained_nnh_loss(pred_scores, target_labels, fg_mask, margin=nnh_margin)
-        loss[1] = loss[1] + alpha_nnh * loss_nnh
-        # ========================================================
         # Bbox loss
         if fg_mask.sum():
             target_bboxes /= stride_tensor
