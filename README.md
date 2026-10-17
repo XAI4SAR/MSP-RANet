@@ -131,8 +131,8 @@ Reference metrics from the original experiment:
 
 | Split | mAP50 | mAP50–95 |
 | --- | ---: | ---: |
-| Validation | 80.053% | 63.566% |
-| Test | 47.753% | 35.457% |
+| Validation | 80.1% | 63.6% |
+| Test | 47.7% | 35.5% |
 
 ## Acknowledgements and License
 
